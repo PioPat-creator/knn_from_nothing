@@ -1,102 +1,60 @@
-class KNNClassifier:
-    def __init__(self, k=3, metric="euclidean"):
-        import numpy as np
+import math
 
-        # 1. Funkcja odległości euklidesowej
-        def odleglosc(p1, p2):
-            """
-            Oblicza odległość między dwoma punktami
-            p1, p2: listy lub tablice [x, y]
-            """
-            return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
-        # 2. Najprostszy KNN w jednej funkcji
-        def prosty_knn(punkt_testowy, punkty_treningowe, etykiety, k=3):
-            """
-            Przewiduje klasę dla punktu testowego
+# Najprostszy KNN - wszystko w jednej funkcji
+def knn(punkt, dane, etykiety, k=3):
+    """
+    punkt: [x, y] - punkt do sklasyfikowania
+    dane: lista punktów treningowych [[x1,y1], [x2,y2], ...]
+    etykiety: lista etykiet ['A','B',...]
+    k: liczba sąsiadów
+    """
+    # 1. Oblicz odległości
+    odleglosci = []
+    for i in range(len(dane)):
+        dx = punkt[0] - dane[i][0]
+        dy = punkt[1] - dane[i][1]
+        odl = math.sqrt(dx * dx + dy * dy)  # euklidesowa
+        odleglosci.append((odl, etykiety[i]))
 
-            punkt_testowy: [x, y]
-            punkty_treningowe: lista punktów [[x1, y1], [x2, y2], ...]
-            etykiety: lista etykiet dla każdego punktu treningowego
-            k: liczba sąsiadów
-            """
-            # Oblicz wszystkie odległości
-            odleglosci = []
-            for i, punkt in enumerate(punkty_treningowe):
-                d = odleglosc(punkt_testowy, punkt)
-                odleglosci.append((d, etykiety[i]))
+    # 2. Sortuj od najmniejszej
+    odleglosci.sort()
 
-            # Sortuj od najmniejszej odległości
-            odleglosci.sort(key=lambda x: x[0])
+    # 3. Weź k najbliższych
+    najblizsi = odleglosci[:k]
 
-            # Weź k najbliższych
-            najblizsi = odleglosci[:k]
+    # 4. Policz głosy
+    glosy = {}
+    for _, etykieta in najblizsi:
+        glosy[etykieta] = glosy.get(etykieta, 0) + 1
 
-            # Zlicz głosy
-            glosy = {}
-            for _, etykieta in najblizsi:
-                if etykieta not in glosy:
-                    glosy[etykieta] = 0
-                glosy[etykieta] += 1
+    # 5. Znajdź zwycięzcę
+    return max(glosy, key=glosy.get)
 
-            # Znajdź zwycięzcę
-            return max(glosy.items(), key=lambda x: x[1])[0]
 
-        # PRZYKŁAD
-        if __name__ == "__main__":
-            print("NAJPROSTSZY PRZYKŁAD KNN")
-            print("=" * 40)
+# PRZYKŁAD
+if __name__ == "__main__":
+    # Bardzo proste dane
+    # Na lewo: owoce (F), na prawo: warzywa (V)
+    punkty = [
+        [1, 3], [2, 2], [1, 1],  # F
+        [5, 5], [6, 4], [4, 6]  # V
+    ]
 
-            # Dane treningowe - prosty przykład
-            # 3 czerwone (R) i 3 niebieskie (B) punkty
-            dane = [
-                [1, 2],  # R
-                [2, 1],  # R
-                [1, 1],  # R
-                [4, 5],  # B
-                [5, 4],  # B
-                [5, 5]  # B
-            ]
+    nazwy = ['F', 'F', 'F', 'V', 'V', 'V']
 
-            kolory = ['R', 'R', 'R', 'B', 'B', 'B']
+    print("KNN w 30 linijkach kodu!")
+    print("-" * 30)
 
-            # Punkty do przetestowania
-            testowe = [
-                [1.5, 1.5],  # powinien być R
-                [4.5, 4.5],  # powinien być B
-                [3, 3]  # na środku - ciekawe co wybierze
-            ]
+    # Test
+    test_punkt = [3, 3]  # na środku
+    wynik = knn(test_punkt, punkty, nazwy, k=3)
+    print(f"Punkt {test_punkt} to: {wynij}")
+    print(f"  (F = owoc, V = warzywo)")
 
-            print("Dane treningowe:")
-            for i, (punkt, kolor) in enumerate(zip(dane, kolory), 1):
-                print(f"  Punkt {i}: {punkt} -> {kolor}")
-
-            print("\nTest dla k=3:")
-            for punkt in testowe:
-                wynik = prosty_knn(punkt, dane, kolory, k=3)
-                print(f"  Punkt {punkt} -> Klasa: {wynik}")
-
-            print("\nSprawdźmy różne wartości k dla punktu [3, 3]:")
-            punkt_sporny = [3, 3]
-            for k in [1, 3, 5]:
-                wynik = prosty_knn(punkt_sporny, dane, kolory, k=k)
-                print(f"  k={k}: -> {wynik}")
-
-            # Wizualizacja w ASCII
-            print("\nWizualizacja:")
-            print("  R - czerwone punkty (lewy dolny róg)")
-            print("  B - niebieskie punkty (prawy górny róg)")
-            print("  ? - punkty testowe")
-
-            # Prosta siatka
-            print("\n  y")
-            print("  5 B  B  ?  B  B")
-            print("  4 .  .  .  .  B")
-            print("  3 .  .  ?  .  .")
-            print("  2 R  .  .  .  .")
-            print("  1 R  R  .  .  .")
-            print("    1  2  3  4  5  x")
-    def fit(self, X, y):
-        ...
-    def predict(self, X):
-        ...
+    # Kilka testów
+    print("\nWięcej testów:")
+    testy = [[2, 3], [5, 5], [1, 2], [6, 5]]
+    for p in testy:
+        w = knn(p, punkty, nazwy, k=3)
+        print(f"  {p} -> {w}")
