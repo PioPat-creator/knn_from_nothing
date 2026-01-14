@@ -1,60 +1,111 @@
+from __future__ import annotations
+
 import math
+from dataclasses import dataclass
+from typing import Any, Iterable, List, Sequence
+
+import numpy as np
 
 
-# Najprostszy KNN - wszystko w jednej funkcji
-def knn(punkt, dane, etykiety, k=3):
-    """
-    punkt: [x, y] - punkt do sklasyfikowania
-    dane: lista punktów treningowych [[x1,y1], [x2,y2], ...]
-    etykiety: lista etykiet ['A','B',...]
-    k: liczba sąsiadów
-    """
-    # 1. Oblicz odległości
-    odleglosci = []
-    for i in range(len(dane)):
-        dx = punkt[0] - dane[i][0]
-        dy = punkt[1] - dane[i][1]
-        odl = math.sqrt(dx * dx + dy * dy)  # euklidesowa
-        odleglosci.append((odl, etykiety[i]))
-
-    # 2. Sortuj od najmniejszej
-    odleglosci.sort()
-
-    # 3. Weź k najbliższych
-    najblizsi = odleglosci[:k]
-
-    # 4. Policz głosy
-    glosy = {}
-    for _, etykieta in najblizsi:
-        glosy[etykieta] = glosy.get(etykieta, 0) + 1
-
-    # 5. Znajdź zwycięzcę
-    return max(glosy, key=glosy.get)
+def _to_2d_array(X: Any, name: str) -> np.ndarray:
+    X = np.asarray(X, dtype=float)
+    if X.ndim == 1:
+        X = X.reshape(-1, 1)
+    if X.ndim != 2:
+        raise ValueError(f"{name} must be 2D array-like, got shape={X.shape}")
+    if X.shape[0] == 0:
+        raise ValueError(f"{name} must have at least one sample")
+    return X
 
 
-# PRZYKŁAD
+def _to_1d_array(y: Any, name: str) -> np.ndarray:
+    y = np.asarray(y, dtype=object)
+    if y.ndim != 1:
+        raise ValueError(f"{name} must be 1D array-like, got shape={y.shape}")
+    if y.shape[0] == 0:
+        raise ValueError(f"{name} must have at least one label")
+    return y
+
+
+def _majority_vote(labels: np.ndarray) -> Any:
+    # Deterministyczny tie-break: pierwszy label w kolejności najbliższych
+    counts = {}
+    for lab in labels:
+        counts[lab] = counts.get(lab, 0) + 1
+    m = max(counts.values())
+    for lab in labels:
+        if counts[lab] == m:
+            return lab
+    return labels[0]
+
+
+@dataclass
+class KNNClassifier:
+    k: int = 3
+
+    _X_train: np.ndarray | None = None
+    _y_train: np.ndarray | None = None
+
+    def fit(self, X: Any, y: Any) -> "KNNClassifier":
+        X = _to_2d_array(X, "X")
+        y = _to_1d_array(y, "y")
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y lengths do not match")
+        if not isinstance(self.k, (int, np.integer)) or self.k <= 0:
+            raise ValueError("k must be a positive integer")
+
+        self._X_train = X
+        self._y_train = y
+        return self
+
+    def predict(self, X: Any) -> np.ndarray:
+        if self._X_train is None or self._y_train is None:
+            raise RuntimeError("Call fit(X, y) first.")
+
+        Xq = _to_2d_array(X, "X")
+        if Xq.shape[1] != self._X_train.shape[1]:
+            raise ValueError("Feature count mismatch vs training data")
+
+        preds = np.empty((Xq.shape[0],), dtype=object)
+
+        # Prosty, czytelny wariant (bez optymalizacji): liczymy dystanse w pętli
+        for i, x in enumerate(Xq):
+            dists = []
+            for j, xt in enumerate(self._X_train):
+                # dystans euklidesowy dla N wymiarów
+                s = 0.0
+                for a, b in zip(x, xt):
+                    diff = a - b
+                    s += diff * diff
+                d = math.sqrt(s)
+                dists.append((d, j))
+
+            dists.sort(key=lambda t: t[0])
+            k_eff = min(self.k, len(dists))
+            nn_idx = [idx for _, idx in dists[:k_eff]]
+            nn_labels = self._y_train[nn_idx]
+            preds[i] = _majority_vote(nn_labels)
+
+        return preds
+
+    def score(self, X: Any, y: Any) -> float:
+        y_true = _to_1d_array(y, "y")
+        y_pred = self.predict(X)
+        return float(np.mean(y_pred == y_true))
+
+
+# Zostawiamy proste demo, ale nie jest ono “rdzeniem” projektu
 if __name__ == "__main__":
-    # Bardzo proste dane
-    # Na lewo: owoce (F), na prawo: warzywa (V)
     punkty = [
         [1, 3], [2, 2], [1, 1],  # F
-        [5, 5], [6, 4], [4, 6]  # V
+        [5, 5], [6, 4], [4, 6]   # V
     ]
+    nazwy = ["F", "F", "F", "V", "V", "V"]
 
-    nazwy = ['F', 'F', 'F', 'V', 'V', 'V']
+    model = KNNClassifier(k=3).fit(punkty, nazwy)
 
-    print("KNN w 30 linijkach kodu!")
-    print("-" * 30)
+    test_punkt = [3, 3]
+    wynik = model.predict([test_punkt])[0]
 
-    # Test
-    test_punkt = [3, 3]  # na środku
-    wynik = knn(test_punkt, punkty, nazwy, k=3)
-    print(f"Punkt {test_punkt} to: {wynij}")
-    print(f"  (F = owoc, V = warzywo)")
-
-    # Kilka testów
-    print("\nWięcej testów:")
-    testy = [[2, 3], [5, 5], [1, 2], [6, 5]]
-    for p in testy:
-        w = knn(p, punkty, nazwy, k=3)
-        print(f"  {p} -> {w}")
+    print("KNN demo")
+    print(f"Punkt {test_punkt} to: {wynik} (F=owoc, V=warzywo)")
