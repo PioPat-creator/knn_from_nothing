@@ -28,7 +28,6 @@ def _to_1d_array(y: Any, name: str) -> np.ndarray:
 
 
 def _majority_vote(labels: np.ndarray) -> Any:
-    # Deterministyczny tie-break: pierwszy label w kolejności najbliższych
     counts = {}
     for lab in labels:
         counts[lab] = counts.get(lab, 0) + 1
@@ -68,11 +67,11 @@ class KNNClassifier:
 
         preds = np.empty((Xq.shape[0],), dtype=object)
 
-        # Prosty, czytelny wariant (bez optymalizacji): liczymy dystanse w pętli
+        # calculating distance in loop
         for i, x in enumerate(Xq):
             dists = []
             for j, xt in enumerate(self._X_train):
-                # dystans euklidesowy dla N wymiarów
+                # euclides distance for n points
                 s = 0.0
                 for a, b in zip(x, xt):
                     diff = a - b
@@ -94,13 +93,18 @@ class KNNClassifier:
         return float(np.mean(y_pred == y_true))
 
 
-# Zostawiamy proste demo, ale nie jest ono “rdzeniem” projektu
+    # points over x=y line are blue, under are red
 if __name__ == "__main__":
     punkty = [
-        [1, 3], [2, 2], [1, 1],  # F
-        [5, 5], [6, 4], [4, 6]   # V
+        [1, 3], [2, 3], [1, 2], [1, 8], [12, 32], [10, 22], [41, 73], [12, 33], [51, 62], [15, 33], [32, 53], [17, 22], [18, 33], [20, 30], [14,18],   # B
+        [5, 8], [5, 9], [3, 6], [1, 4], [12, 54], [34, 42], [11, 13], [12, 23], [14, 22], [17, 53], [20, 30], [71, 82], [41, 53], [62, 73], [81, 92],  # B
+        [2, 1], [3, 2], [5, 2], [7, 3], [25, 23], [17, 12], [16, 13], [62, 43], [81, 72], [61, 23], [42, 33], [91, 82], [81, 73], [72, 63], [61, 52],  # R
+        [1, 3], [2, 3], [1, 2], [1, 3], [27, 17], [19, 12], [91, 33], [29, 23], [41, 12], [66, 48], [58, 33], [21, 12], [31, 23], [42, 33], [51, 42],  # R
     ]
-    nazwy = ["F", "F", "F", "V", "V", "V"]
+    nazwy = [
+        "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", 
+        "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R"
+    ]
 
     model = KNNClassifier(k=3).fit(punkty, nazwy)
 
@@ -108,4 +112,4 @@ if __name__ == "__main__":
     wynik = model.predict([test_punkt])[0]
 
     print("KNN demo")
-    print(f"Punkt {test_punkt} to: {wynik} (F=owoc, V=warzywo)")
+    print(f"Punkt {test_punkt} to: {wynik} (B=niebieski, R=czerwony)")
