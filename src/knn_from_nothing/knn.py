@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     model = KNNClassifier(k=3).fit(punkty, nazwy)
 
-    test_punkt = [3, 3]
+    test_punkt = [33, 33]
     wynik = model.predict([test_punkt])[0]
 
     print("KNN demo")
